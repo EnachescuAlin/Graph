@@ -14,21 +14,83 @@ template
     typename VertexType,
     typename CostType
 >
-class EdgesList
+class Edge
 {
+        const VertexType& GetFirstVertex(void) const
+        {
+            return std::get<0>(edge);
+        }
+
+        const VertexType& GetSecondVertex(void) const
+        {
+            return std::get<1>(edge);
+        }
+
+        const CostType& GetCost(void) const
+        {
+            return std::get<2>(edge);
+        }
+
+        VertexType& GetFirstVertex(void)
+        {
+            return std::get<0>(edge);
+        }
+
+        VertexType& GetSecondVertex(void)
+        {
+            return std::get<1>(edge);
+        }
+
+        CostType& GetCost(void)
+        {
+            return std::get<2>(edge);
+        }
+
     private:
-        std::list<std::tuple<VertexType, VertexType, CostType>> edgesList;
+        std::tuple<VertexType, VertexType, CostType> edge;
 };
 
 template
 <
     typename VertexType
 >
-class EdgesList<VertexType, WithoutCost>
+class Edge<VertexType, WithoutCost>
+{
+    public:
+        const VertexType& GetFirstVertex(void) const
+        {
+            return edge.first;
+        }
+
+        const VertexType& GetSecondVertex(void) const
+        {
+            return edge.second;
+        }
+
+        VertexType& GetFirstVertex(void)
+        {
+            return edge.first;
+        }
+
+        VertexType& GetSecondVertex(void)
+        {
+            return edge.second;
+        }
+
+    private:
+        std::pair<VertexType, VertexType> edge;
+};
+
+template
+<
+    typename VertexType,
+    typename CostType
+>
+class EdgesList
 {
     private:
-        std::list<std::pair<VertexType, VertexType>> edgesList;
-};
+        std::list<Edge<VertexType, CostType>> edgesList;
+}
 
 template
 <
