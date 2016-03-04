@@ -1,13 +1,31 @@
 #ifndef GRAPH
 #define GRAPH
 
-#include <tuple>
 #include <list>
+#include <exception>
+#include <string>
 
 namespace GRAPH
 {
 
 class WithoutCost final {};
+
+class GraphException final : public std::exception
+{
+    public:
+        GraphException(const std::string& exc)
+        {
+            this->exc = exc;
+        }
+
+        const char* what() const throw()
+        {
+            return exc.c_str();
+        }
+
+    private:
+        std::string exc;
+};
 
 template
 <
@@ -16,38 +34,40 @@ template
 >
 class Edge
 {
-        const VertexType& GetFirstVertex(void) const
+    public:
+        const VertexType& operator[](std::size_t i) const
         {
-            return std::get<0>(edge);
+            if (i == 0)
+                return __vertex1;
+            if (i == 1)
+                return __vertex2;
+
+            throw out_of_range();
         }
 
-        const VertexType& GetSecondVertex(void) const
+        VertexType& operator[](std::size_t i)
         {
-            return std::get<1>(edge);
+            if (i == 0)
+                return __vertex1;
+            if (i == 1)
+                return __vertex2;
+
+            throw out_of_range();
         }
 
         const CostType& GetCost(void) const
         {
-            return std::get<2>(edge);
-        }
-
-        VertexType& GetFirstVertex(void)
-        {
-            return std::get<0>(edge);
-        }
-
-        VertexType& GetSecondVertex(void)
-        {
-            return std::get<1>(edge);
+            return __cost;
         }
 
         CostType& GetCost(void)
         {
-            return std::get<2>(edge);
+            return __cost;
         }
 
     private:
-        std::tuple<VertexType, VertexType, CostType> edge;
+        VertexType __vertex1, __vertex2;
+        CostType __cost;
 };
 
 template
@@ -57,28 +77,28 @@ template
 class Edge<VertexType, WithoutCost>
 {
     public:
-        const VertexType& GetFirstVertex(void) const
+        const VertexType& operator[](std::size_t i) const
         {
-            return edge.first;
+            if (i == 0)
+                return __vertex1;
+            if (i == 1)
+                return __vertex2;
+
+            throw out_of_range();
         }
 
-        const VertexType& GetSecondVertex(void) const
+        VertexType& operator[](std::size_t i)
         {
-            return edge.second;
-        }
+            if (i == 0)
+                return __vertex1;
+            if (i == 1)
+                return __vertex2;
 
-        VertexType& GetFirstVertex(void)
-        {
-            return edge.first;
-        }
-
-        VertexType& GetSecondVertex(void)
-        {
-            return edge.second;
+            throw out_of_range();
         }
 
     private:
-        std::pair<VertexType, VertexType> edge;
+        VertexType __vertex1, __vertex2;
 };
 
 template
@@ -101,9 +121,15 @@ template
 >
 class Graph
 {
+    static_assert(std::is_same<RepresentationType, EdgesList>::value,
+                  "RepresentationType must be EdgesList");
+
     public:
         Graph() = default;
         ~Graph() = default;
+
+    private:
+        RepresentationType<VertexType, CostType> collection;
 };
 
 }
