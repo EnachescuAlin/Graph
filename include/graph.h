@@ -23,30 +23,40 @@ enum RepresentationMode
     ADJACENCY_MATRIX = 1L << 1,
     ADJACENCY_LIST   = 1L << 2
 };
- 
+
 inline constexpr RepresentationMode operator|(RepresentationMode __a,
                                               RepresentationMode __b)
 {
     return RepresentationMode(static_cast<long>(__a) | static_cast<long>(__b));
 }
- 
+
 inline constexpr bool operator&(RepresentationMode __a, RepresentationMode __b)
 {
     return ((static_cast<long>(__a) & static_cast<long>(__b)) != 0);
 }
- 
+
 inline constexpr bool operator>(RepresentationMode __a, RepresentationMode __b)
 {
     return (static_cast<long>(__a) > static_cast<long>(__b));
 }
- 
+
 inline constexpr bool operator<(RepresentationMode __a, RepresentationMode __b)
 {
     return (static_cast<long>(__a) < static_cast<long>(__b));
 }
- 
- 
- 
+
+inline constexpr bool operator==(RepresentationMode __a, RepresentationMode __b)
+{
+    return (static_cast<long>(__a) == static_cast<long>(__b));
+}
+
+inline constexpr bool operator!=(RepresentationMode __a, RepresentationMode __b)
+{
+    return (static_cast<long>(__a) != static_cast<long>(__b));
+}
+
+
+
 class GraphException final : public std::exception
 {
     public:
@@ -87,42 +97,48 @@ struct CostTraits final
     typedef std::vector<CostType*>                       AdjacencyMatrixType;
     typedef std::tuple<VertexType, VertexType, CostType> EdgesListType;
 
-    inline static void AddEdge(std::list<EdgesListType>& _list,
-                               const VertexType& v1,
-                               const VertexType& v2,
-                               const CostType& ct)
+    static void AddEdge(std::list<EdgesListType>& _list,
+                        const VertexType& v1,
+                        const VertexType& v2,
+                        const CostType& ct)
     {
         _list.push_back(EdgesListType(v1, v2, ct));
     }
 
-    inline static VertexType& GetFirstVertex(EdgesListType& __tuple)
+    static VertexType& GetFirstVertex(EdgesListType& __tuple)
     {
         return std::get<0>(__tuple);
     }
 
-    inline static const VertexType& GetFirstVertex(const EdgesListType& __tuple)
+    static const VertexType& GetFirstVertex(const EdgesListType& __tuple)
     {
         return std::get<0>(__tuple);
     }
 
-    inline static VertexType& GetSecondVertex(EdgesListType& __tuple)
+    static VertexType& GetSecondVertex(EdgesListType& __tuple)
     {
         return std::get<1>(__tuple);
     }
 
-    inline static const VertexType& GetSecondVertex(const EdgesListType& __tuple)
+    static const VertexType& GetSecondVertex(const EdgesListType& __tuple)
     {
         return std::get<1>(__tuple);
     }
 
-    inline static CostType& GetCost(EdgesListType& __tuple)
+    static CostType& GetCost(EdgesListType& __tuple)
     {
         return std::get<2>(__tuple);
     }
 
-    inline static const CostType& GetCost(const EdgesListType& __tuple)
+    static const CostType& GetCost(const EdgesListType& __tuple)
     {
         return std::get<2>(__tuple);
+    }
+
+    template<class Compare>
+    static void SortEdgesList(std::list<EdgesListType>& __list, Compare _compare)
+    {
+        __list.sort(_compare);
     }
 };
 
@@ -132,30 +148,30 @@ struct CostTraits<VertexType, NoCostClass> final
     typedef std::vector<bool>                 AdjacencyMatrixType;
     typedef std::pair<VertexType, VertexType> EdgesListType;
 
-    inline static void AddEdge(std::list<EdgesListType>& _list,
-                               const VertexType& v1,
-                               const VertexType& v2,
-                               const NoCostClass& unused)
+    static void AddEdge(std::list<EdgesListType>& _list,
+                        const VertexType& v1,
+                        const VertexType& v2,
+                        const NoCostClass& unused)
     {
         _list.push_back(EdgesListType(v1, v2));
     }
 
-    inline static VertexType& GetFirstVertex(EdgesListType& __pair)
+    static VertexType& GetFirstVertex(EdgesListType& __pair)
     {
         return __pair.first;
     }
 
-    inline static const VertexType& GetFirstVertex(const EdgesListType& __pair)
+    static const VertexType& GetFirstVertex(const EdgesListType& __pair)
     {
         return __pair.first;
     }
 
-    inline static VertexType& GetSecondVertex(EdgesListType& __pair)
+    static VertexType& GetSecondVertex(EdgesListType& __pair)
     {
         return __pair.second;
     }
 
-    inline static const VertexType& GetSecondVertex(const EdgesListType& __pair)
+    static const VertexType& GetSecondVertex(const EdgesListType& __pair)
     {
         return __pair.second;
     }
@@ -178,11 +194,17 @@ class Graph final
                   "Uses DirectedGraphClass or UndirectedGraphClass!");
 
     public:
+        typedef typename CostTraits
+        <
+            VertexType,
+            CostType
+        >::EdgesListType EdgeType;
+
         typedef CostTraits
         <
             VertexType,
             CostType
-        > __CostTraits;
+        > EdgeTraits;
 
         typedef std::list
         <
@@ -191,7 +213,7 @@ class Graph final
                 VertexType,
                 CostType
             >::EdgesListType
-        > __EdgesListType;
+        > EdgesList;
 
         typedef std::map
         <
@@ -200,7 +222,7 @@ class Graph final
             <
                 VertexType
             >
-        > __AdjacencyListType;
+        > AdjacencyList;
 
         typedef std::vector
         <
@@ -209,13 +231,7 @@ class Graph final
                 VertexType,
                 CostType
             >::AdjacencyMatrixType
-        > __AdjacencyMatrixType;
-
-        typedef std::is_same
-        <
-            CostType,
-            NoCostClass
-        > __NoCost;
+        > AdjacencyMatrix;
 
 
 
@@ -270,10 +286,64 @@ class Graph final
             file.close();
         }
 
+        void TransformFromTo(const RepresentationMode& from,
+                             const RepresentationMode& to)
+            throw(GraphException)
+        {
+            if (from == to)
+                throw GraphException("");
+
+            if (from != EDGES_LIST &&
+                from != ADJACENCY_LIST &&
+                from != ADJACENCY_MATRIX)
+                throw GraphException("");
+
+            if (to != EDGES_LIST &&
+                to != ADJACENCY_LIST &&
+                to != ADJACENCY_MATRIX)
+                throw GraphException("");
+
+            if (from == EDGES_LIST)
+            {
+                if (to == ADJACENCY_LIST)
+                {
+                    return;
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            if (from == ADJACENCY_LIST)
+            {
+                if (to == EDGES_LIST)
+                {
+                    return;
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            if (from == ADJACENCY_MATRIX)
+            {
+                if (to == EDGES_LIST)
+                {
+                    return;
+                }
+                else
+                {
+                    return;
+                }
+            }
+        }
+
         /*
          * Delete edges list.
          */
-        inline void DeleteEdgesList(void)
+        void DeleteEdgesList(void)
         {
             edgesList = nullptr;
         }
@@ -281,15 +351,15 @@ class Graph final
         /*
          * Set edges list.
          */
-        inline void SetEdgesList(const __EdgesListType& __list)
+        void SetEdgesList(const EdgesList& __list)
         {
-            edgesList.reset(new __EdgesListType(__list));
+            edgesList.reset(new EdgesList(__list));
         }
 
         /*
          * Delete adjacency list.
          */
-        inline void DeleteAdjacencyList(void)
+        void DeleteAdjacencyList(void)
         {
             adjacencyList = nullptr;
         }
@@ -297,15 +367,15 @@ class Graph final
         /*
          * Set adjacency list.
          */
-        inline void SetAdjacencyList(const __AdjacencyListType& __map)
+        void SetAdjacencyList(const AdjacencyList& __map)
         {
-            adjacencyList.reset(new __AdjacencyListType(__map));
+            adjacencyList.reset(new AdjacencyList(__map));
         }
 
         /*
          * Delete adjacency matrix.
          */
-        inline void DeleteAdjacencyMatrix(void)
+        void DeleteAdjacencyMatrix(void)
         {
             adjacencyMatrix = nullptr;
         }
@@ -313,9 +383,15 @@ class Graph final
         /*
          * Set adjacency matrix.
          */
-        inline void SetAdjacencyMatrix(const __AdjacencyMatrixType& __matrix)
+        void SetAdjacencyMatrix(const AdjacencyMatrix& __matrix)
         {
-            adjacencyMatrix.reset(new __AdjacencyMatrixType(__matrix));
+            adjacencyMatrix.reset(new AdjacencyMatrix(__matrix));
+        }
+
+        template<class Compare>
+        void SortEdgesList(Compare __compare)
+        {
+            EdgeTraits::SortEdgesList(*edgesList, __compare);
         }
 
 
@@ -343,59 +419,59 @@ class Graph final
 
                 }
 
-                inline bool operator!=(const EdgesListIterator& __it) const
+                bool operator!=(const EdgesListIterator& __it) const
                 {
                     return (this->__iterator != __it.__iterator);
                 }
 
-                inline EdgesListIterator& operator++()
+                EdgesListIterator& operator++()
                 {
                     ++__iterator;
                     return *this;
                 }
 
-                inline EdgesListIterator& operator--()
+                EdgesListIterator& operator--()
                 {
                     ++__iterator;
                     return *this;
                 }
 
-                inline const VertexType& GetFirstVertex(void) const
+                const VertexType& GetFirstVertex(void) const
                 {
-                    return __CostTraits::GetFirstVertex(*__iterator);
+                    return EdgeTraits::GetFirstVertex(*__iterator);
                 }
 
-                inline const VertexType& GetSecondVertex(void) const
+                const VertexType& GetSecondVertex(void) const
                 {
-                    return __CostTraits::GetSecondVertex(*__iterator);
+                    return EdgeTraits::GetSecondVertex(*__iterator);
                 }
 
-                inline const CostType& GetCost(void) const
+                const CostType& GetCost(void) const
                 {
-                    return __CostTraits::GetCost(*__iterator);
+                    return EdgeTraits::GetCost(*__iterator);
                 }
 
-                inline VertexType& GetFirstVertex(void)
+                VertexType& GetFirstVertex(void)
                 {
-                    return __CostTraits::GetFirstVertex(*__iterator);
+                    return EdgeTraits::GetFirstVertex(*__iterator);
                 }
 
-                inline VertexType& GetSecondVertex(void)
+                VertexType& GetSecondVertex(void)
                 {
-                    return __CostTraits::GetSecondVertex(*__iterator);
+                    return EdgeTraits::GetSecondVertex(*__iterator);
                 }
 
-                inline CostType& GetCost(void)
+                CostType& GetCost(void)
                 {
-                    return __CostTraits::GetCost(*__iterator);
+                    return EdgeTraits::GetCost(*__iterator);
                 }
 
-                inline const EdgesListIterator& operator*(void) const
+                const EdgesListIterator& operator*(void) const
                 {
                     return *this;
                 }
 
-                inline EdgesListIterator& operator*(void)
+                EdgesListIterator& operator*(void)
                 {
                     return *this;
                 }
@@ -425,44 +501,44 @@ class Graph final
 
                 }
 
-                inline bool operator!=(const EdgesListConstIterator& __it)
+                bool operator!=(const EdgesListConstIterator& __it)
                 {
                     return (this->__iterator != __it.__iterator);
                 }
 
-                inline EdgesListConstIterator& operator++()
+                EdgesListConstIterator& operator++()
                 {
                     ++__iterator;
                     return *this;
                 }
 
-                inline EdgesListConstIterator& operator--()
+                EdgesListConstIterator& operator--()
                 {
                     ++__iterator;
                     return *this;
                 }
 
-                inline const VertexType& GetFirstVertex(void) const
+                const VertexType& GetFirstVertex(void) const
                 {
-                    return __CostTraits::GetFirstVertex(*__iterator);
+                    return EdgeTraits::GetFirstVertex(*__iterator);
                 }
 
-                inline const VertexType& GetSecondVertex(void) const
+                const VertexType& GetSecondVertex(void) const
                 {
-                    return __CostTraits::GetSecondVertex(*__iterator);
+                    return EdgeTraits::GetSecondVertex(*__iterator);
                 }
 
-                inline const CostType& GetCost(void) const
+                const CostType& GetCost(void) const
                 {
-                    return __CostTraits::GetCost(*__iterator);
+                    return EdgeTraits::GetCost(*__iterator);
                 }
 
-                inline const EdgesListConstIterator& operator*(void) const
+                const EdgesListConstIterator& operator*(void) const
                 {
                     return *this;
                 }
 
-                inline EdgesListConstIterator& operator*(void)
+                EdgesListConstIterator& operator*(void)
                 {
                     return *this;
                 }
@@ -471,7 +547,7 @@ class Graph final
                 EdgesListConstIteratorType __iterator;
         };
 
-        inline EdgesListIterator EdgesListBegin(void)
+        EdgesListIterator EdgesListBegin(void)
             throw(GraphException)
         {
             if (!edgesList)
@@ -480,7 +556,7 @@ class Graph final
             return EdgesListIterator(edgesList->begin());
         }
 
-        inline EdgesListIterator EdgesListEnd(void)
+        EdgesListIterator EdgesListEnd(void)
             throw(GraphException)
         {
             if (!edgesList)
@@ -489,7 +565,7 @@ class Graph final
             return EdgesListIterator(edgesList->end());
         }
 
-        inline EdgesListConstIterator EdgesListBegin(void) const
+        EdgesListConstIterator EdgesListBegin(void) const
             throw(GraphException)
         {
             if (!edgesList)
@@ -498,7 +574,7 @@ class Graph final
             return EdgesListConstIterator(edgesList->cbegin());
         }
 
-        inline EdgesListConstIterator EdgesListEnd(void) const
+        EdgesListConstIterator EdgesListEnd(void) const
             throw(GraphException)
         {
             if (!edgesList)
@@ -507,25 +583,25 @@ class Graph final
             return EdgesListConstIterator(edgesList->cend());
         }
 
-        inline EdgesListConstIterator begin(void) const
+        EdgesListConstIterator begin(void) const
             throw(GraphException)
         {
             return EdgesListBegin();
         }
 
-        inline EdgesListConstIterator end(void) const
+        EdgesListConstIterator end(void) const
             throw(GraphException)
         {
             return EdgesListEnd();
         }
 
-        inline EdgesListIterator begin(void)
+        EdgesListIterator begin(void)
             throw(GraphException)
         {
             return EdgesListBegin();
         }
 
-        inline EdgesListIterator end(void)
+        EdgesListIterator end(void)
             throw(GraphException)
         {
             return EdgesListEnd();
@@ -542,27 +618,28 @@ class Graph final
         /*
          * Shared pointer for adjacency list.
          */
-        std::shared_ptr<__AdjacencyListType>    adjacencyList;
+        std::shared_ptr<AdjacencyList>    adjacencyList;
 
         /*
          * Shared pointer for adjacency matrix.
          */
-        std::shared_ptr<__AdjacencyMatrixType>  adjacencyMatrix;
+        std::shared_ptr<AdjacencyMatrix>  adjacencyMatrix;
 
         /*
          * Shared pointer for edges list.
          */
-        std::shared_ptr<__EdgesListType>        edgesList;
+        std::shared_ptr<EdgesList>        edgesList;
 
 
         /*
          * Read edges list from file.
          */
         void ReadEdgesListFromFile(std::ifstream& file)
+            throw(GraphException)
         {
             using namespace std;
 
-            edgesList.reset(new __EdgesListType);
+            edgesList.reset(new EdgesList);
 
             VertexType v1, v2;
             CostType cost;
@@ -570,16 +647,16 @@ class Graph final
 
             file >> edgesNumber;
 
-            if (__NoCost::value)
+            if (is_same<CostType, NoCostClass>::value)
                 for (size_t i = 0; i < edgesNumber; i++)
                     if (file >> v1 >> v2)
-                        __CostTraits::AddEdge(*edgesList, v1, v2, cost);
+                        EdgeTraits::AddEdge(*edgesList, v1, v2, cost);
                     else
                         throw GraphException("Wrong input");
             else
                 for (size_t i = 0; i < edgesNumber; i++)
                     if (file >> v1 >> v2 >> cost)
-                        __CostTraits::AddEdge(*edgesList, v1, v2, cost);
+                        EdgeTraits::AddEdge(*edgesList, v1, v2, cost);
                     else
                         throw GraphException("Wrong input");
         }
